@@ -1,5 +1,4 @@
-// components/article-params-form/ArticleParamsForm.tsx
-import { useRef } from 'react';
+import { useRef, useState, useMemo } from 'react';
 import clsx from 'clsx';
 
 import { ArrowButton } from 'src/ui/arrow-button';
@@ -9,6 +8,7 @@ import { RadioGroup } from 'src/ui/radio-group';
 // import { Separator } from 'src/ui/separator';
 
 import {
+	defaultArticleState,
 	fontFamilyOptions,
 	fontColors,
 	backgroundColors,
@@ -17,73 +17,119 @@ import {
 	type ArticleStateType,
 } from 'src/constants/articleProps';
 
-import { useOutsideClickClose } from 'src/ui/select/hooks/useOutsideClickClose'; // тот самый хук
+import { useOutsideClickClose } from 'src/ui/select/hooks/useOutsideClickClose';
 import styles from './ArticleParamsForm.module.scss';
 
 type Props = {
-	isOpen: boolean;
-	onToggle: () => void;
-	onClose: () => void; // должен в родителе делать setIsOpen(false)
-	value: ArticleStateType; // draft-настройки
-	onChange: (patch: Partial<ArticleStateType>) => void; // патч draft
-	onApply: () => void; // применить draft -> applied
-	onReset: () => void; // сброс к initial
+	// отдаём наружу только применённый результат
+	onApply: (applied: ArticleStateType) => void;
 };
 
-export const ArticleParamsForm = ({
-	isOpen,
-	onToggle,
-	onClose,
-	value,
-	onChange,
-	onApply,
-	onReset,
-}: Props) => {
-	// ref на корневой элемент сайдбара
+export const ArticleParamsForm = ({ onApply }: Props) => {
+	// меню
+	const [isMenuOpen, setIsMenuOpen] = useState(false);
+
+	// состояния формы — полностью локально внутри
+	const [initial] = useState<ArticleStateType>(defaultArticleState);
+	const [draft, setDraft] = useState<ArticleStateType>(initial);
+
+	// ref на панель для «клик-вне»
 	const rootRef = useRef<HTMLDivElement>(null);
 
-	// закрытие по клику вне панели
+	// закрытие по клику вне — эффект активен ТОЛЬКО когда меню открыто
 	useOutsideClickClose({
-		isOpen,
+		isOpen: isMenuOpen,
 		rootRef,
-		onClose,
-		onChange: () => {}, // стейт isOpen хранится снаружи, поэтому тут no-op
+		onClose: () => setIsMenuOpen(false),
 	});
+
+	// апдейтер черновика (патч)
+	const patchDraft = (next: Partial<ArticleStateType>) =>
+		setDraft((prev) => ({ ...prev, ...next }));
+
+	// кнопки
+	const handleApply = () => {
+		onApply(draft); // отдать наверх применённые значения
+		setIsMenuOpen(false); // закрыть меню
+	};
+
+	const handleReset = () => {
+		setDraft(initial); // откатить форму к начальному
+		onApply(initial); // и применить к статье
+		setIsMenuOpen(false);
+	};
+
+	// подписки для компонентов формы
+	const bindings = useMemo(
+		() => ({
+			fontFamily: {
+				selected: draft.fontFamilyOption,
+				onChange: (opt: ArticleStateType['fontFamilyOption']) =>
+					patchDraft({ fontFamilyOption: opt }),
+			},
+			fontSize: {
+				selected: draft.fontSizeOption,
+				onChange: (opt: ArticleStateType['fontSizeOption']) =>
+					patchDraft({ fontSizeOption: opt }),
+			},
+			fontColor: {
+				selected: draft.fontColor,
+				onChange: (opt: ArticleStateType['fontColor']) =>
+					patchDraft({ fontColor: opt }),
+			},
+			background: {
+				selected: draft.backgroundColor,
+				onChange: (opt: ArticleStateType['backgroundColor']) =>
+					patchDraft({ backgroundColor: opt }),
+			},
+			width: {
+				selected: draft.contentWidth,
+				onChange: (opt: ArticleStateType['contentWidth']) =>
+					patchDraft({ contentWidth: opt }),
+			},
+		}),
+		[draft]
+	);
 
 	return (
 		<>
-			{/* Кнопка-стрелка открытия/закрытия */}
-			<ArrowButton isOpen={isOpen} onClick={onToggle} />
+			{/* стрелка открытия/закрытия */}
+			<ArrowButton
+				isOpen={isMenuOpen}
+				onClick={() => setIsMenuOpen((v) => !v)}
+			/>
 
-			{/* Сайдбар */}
+			{/* сайдбар */}
 			<aside
 				ref={rootRef}
-				className={clsx(styles.container, { [styles.container_open]: isOpen })}>
+				className={clsx(styles.container, {
+					[styles.container_open]: isMenuOpen,
+				})}>
 				<form
 					className={styles.form}
 					onSubmit={(e) => {
 						e.preventDefault();
-						onApply();
+						handleApply();
 					}}
 					onReset={(e) => {
 						e.preventDefault();
-						onReset();
+						handleReset();
 					}}>
 					<Select
 						title='Шрифт'
 						options={fontFamilyOptions}
-						selected={value.fontFamilyOption}
+						selected={bindings.fontFamily.selected}
 						placeholder='Выберите шрифт'
-						onChange={(opt) => onChange({ fontFamilyOption: opt })}
-						onClose={onClose}
+						onChange={bindings.fontFamily.onChange}
+						onClose={() => setIsMenuOpen(false)}
 					/>
 
 					<RadioGroup
 						title='Размер шрифта'
 						name='font-size'
 						options={fontSizeOptions}
-						selected={value.fontSizeOption}
-						onChange={(opt) => onChange({ fontSizeOption: opt })}
+						selected={bindings.fontSize.selected}
+						onChange={bindings.fontSize.onChange}
 					/>
 
 					{/* <Separator /> */}
@@ -91,28 +137,28 @@ export const ArticleParamsForm = ({
 					<Select
 						title='Цвет шрифта'
 						options={fontColors}
-						selected={value.fontColor}
+						selected={bindings.fontColor.selected}
 						placeholder='Цвет'
-						onChange={(opt) => onChange({ fontColor: opt })}
-						onClose={onClose}
+						onChange={bindings.fontColor.onChange}
+						onClose={() => setIsMenuOpen(false)}
 					/>
 
 					<Select
 						title='Цвет фона'
 						options={backgroundColors}
-						selected={value.backgroundColor}
+						selected={bindings.background.selected}
 						placeholder='Фон'
-						onChange={(opt) => onChange({ backgroundColor: opt })}
-						onClose={onClose}
+						onChange={bindings.background.onChange}
+						onClose={() => setIsMenuOpen(false)}
 					/>
 
 					<Select
 						title='Ширина контента'
 						options={contentWidthArr}
-						selected={value.contentWidth}
+						selected={bindings.width.selected}
 						placeholder='Ширина'
-						onChange={(opt) => onChange({ contentWidth: opt })}
-						onClose={onClose}
+						onChange={bindings.width.onChange}
+						onClose={() => setIsMenuOpen(false)}
 					/>
 
 					<div className={styles.bottomContainer}>
