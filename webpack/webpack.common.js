@@ -19,29 +19,19 @@ module.exports = {
 	module: {
 		rules: [
 			{
-				test: /\.[tj]sx?$/, //содержит регулярное выражение, которое содержит информацию какие файлы должны обрабатываться этим loader'ом
-				use: [
-					{
-						loader: 'ts-loader',
-					},
-				], // для того чтобы ts-loader корректно отработал нам нужен tsconfig его можно создать вручную, а можно создать автоматически
-				/** чтобы проиницилизовать его автоматически можно установить пакет typesctipt глобально или использовать npx выполнив команду npx tsc --init
-				После создания конфига нужно включить "allowJs": true, чтобы работать не только c typescript, также меняем "jsx": "react" чтобы мы могли работать с react компонентами и включаем карту ресурсов "sourceMap": true, пока на этом все вернемся в этот конфиг позже*/
-				exclude: /node_modules/,
+				test: /\.[jt]sx?$/,
+				exclude: [/node_modules/, /\.stories\.(ts|tsx)$/],
+				use: [{ loader: 'ts-loader' }],
 			},
 			{
 				test: /\.(png|jpg|gif|webp)$/,
 				type: 'asset/resource',
-				generator: {
-					filename: 'static/images/[hash][ext][query]',
-				},
+				generator: { filename: 'static/images/[hash][ext][query]' },
 			},
 			{
-				test: /\.(woff(2)?|eot|ttf|otf)$/,
+				test: /\.(woff2?|eot|ttf|otf)$/,
 				type: 'asset/resource',
-				generator: {
-					filename: 'static/fonts/[hash][ext][query]',
-				},
+				generator: { filename: 'static/fonts/[hash][ext][query]' },
 			},
 			{
 				test: /\.svg$/i,
@@ -60,20 +50,16 @@ module.exports = {
 								localIdentName: '[name]__[local]__[hash:base64:5]',
 								auto: /\.module\.\w+$/i,
 							},
-							importLoaders: 2, //Значение 2 говорит о том, что некоторые трансформации PostCSS нужно применить до css-loader.
+							importLoaders: 2,
 						},
 					},
 					'postcss-loader',
-					{
-						loader: 'sass-loader',
-						options: {
-							sourceMap: true,
-						},
-					},
+					{ loader: 'sass-loader', options: { sourceMap: true } },
 				],
 			},
 		],
 	},
+
 	resolve: {
 		extensions: ['.js', '.jsx', '.tsx', '.ts', '.json'], //указываем файлы с которыми будет работать webpack
 		alias: {
